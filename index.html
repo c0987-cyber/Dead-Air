@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1B2AC4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Muted Fast Money — a two-player head-to-head guessing duel. One reader, two players in headphones.">
+<link rel="manifest" href="manifest.json">
+<title>DEAD AIR — muted fast money</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --field:#1B2AC4;
+  --field-deep:#131C8C;
+  --ink:#0B0C10;
+  --paper:#F4F2EC;
+  --p1:#FF5A1F;
+  --p2:#FFD400;
+  --dead:#7C84A8;
+  --pad:16px;
+  --row:56px;
+}
+*{margin:0;padding:0;box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--field)}
+body{
+  position:fixed;inset:0;
+  font-family:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--paper);-webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit;color:inherit;border:0;background:none;touch-action:manipulation;border-radius:0}
+button{cursor:pointer}
+input{-webkit-user-select:text;user-select:text}
+
+/* ---------- screens ---------- */
+.screen{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  padding:calc(var(--pad) + env(safe-area-inset-top)) calc(var(--pad) + env(safe-area-inset-right))
+          calc(var(--pad) + env(safe-area-inset-bottom)) calc(var(--pad) + env(safe-area-inset-left));
+  overflow:hidden;
+}
+.screen.on{display:flex}
+.scrollpane{
+  flex:1;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding-right:2px;
+}
+
+/* ---------- type ---------- */
+.display{font-family:"Big Shoulders Display","Space Grotesk",sans-serif;font-weight:900;
+  line-height:.86;letter-spacing:-.01em;text-transform:uppercase}
+.eyebrow{font-family:"Space Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--p2)}
+.eyebrow.dim{color:var(--dead)}
+
+/* ---------- blocks ---------- */
+.btn{
+  display:block;width:100%;background:var(--paper);color:var(--ink);
+  font-family:"Big Shoulders Display",sans-serif;font-weight:900;
+  font-size:30px;line-height:1;text-transform:uppercase;letter-spacing:.01em;
+  padding:18px 14px 15px;box-shadow:4px 4px 0 var(--ink);
+  transition:transform .06s,box-shadow .06s;
+}
+.btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+.btn.ghost{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px var(--paper);font-size:22px;padding:13px}
+.btn.ghost:active{transform:none;background:rgba(255,255,255,.12)}
+.btn.small{font-size:20px;padding:12px}
+
+/* ---------- home ---------- */
+.home-mark{margin-top:auto;transform:rotate(-1.6deg)}
+.home-mark span{font-size:clamp(58px,19vw,104px);display:block}
+.home-mark .l1{color:var(--p2)}
+.home-mark .l2{color:var(--paper);margin-left:.06em}
+.home-tag{margin-top:18px;max-width:22ch;font-size:15px;line-height:1.35;color:#C9CEF2}
+.home-actions{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+
+/* ---------- topbar ---------- */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto}
+.tick{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--dead);text-transform:uppercase}
+.iconbtn{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--paper);
+  padding:8px 10px;box-shadow:inset 0 0 0 1.5px rgba(244,242,236,.45);text-transform:uppercase}
+.iconbtn:active{background:rgba(255,255,255,.14)}
+
+/* ---------- live strip ---------- */
+.strip{display:flex;gap:6px;flex:0 0 auto;margin-top:12px}
+.strip div{flex:1;padding:8px 10px;background:var(--ink);display:flex;align-items:baseline;
+  justify-content:space-between;gap:8px;border-bottom:4px solid var(--c)}
+.strip .nm{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip .sc{font-family:"Space Mono",monospace;font-weight:700;font-size:19px;color:var(--c)}
+
+/* ---------- prompt ---------- */
+.promptwrap{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;padding:10px 0}
+.prompt{font-size:clamp(28px,8.2vw,48px);color:var(--paper)}
+.readnote{margin-top:20px;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;
+  color:#A9B0E4;text-transform:uppercase;line-height:1.7}
+.clock{font-family:"Space Mono",monospace;font-weight:700;font-size:15px;color:var(--p2);letter-spacing:.1em}
+.clock.low{color:var(--p1)}
+.bar{height:6px;background:rgba(0,0,0,.35);flex:0 0 auto;margin-top:12px}
+.bar i{display:block;height:100%;background:var(--p2);width:100%;transform-origin:left}
+
+/* ---------- board ---------- */
+.boardhead{flex:0 0 auto;margin-top:14px;margin-bottom:10px}
+.boardhead .q{font-size:17px;font-weight:700;line-height:1.25;margin-top:7px}
+.rows{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;gap:5px}
+.row{display:flex;align-items:stretch;gap:5px;flex:0 0 auto;min-height:var(--row)}
+.row .face{flex:1;min-width:0;background:var(--ink);display:flex;align-items:center;gap:9px;padding:0 10px}
+.row.custom .face{box-shadow:inset 3px 0 0 var(--paper)}
+.row .rk{font-family:"Space Mono",monospace;font-size:11px;color:var(--dead);flex:0 0 auto;width:14px}
+.row.custom .rk{color:var(--paper);font-weight:700}
+.row .txt{flex:1;min-width:0;font-size:15px;font-weight:500;line-height:1.15;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.row .pts{font-family:"Space Mono",monospace;font-weight:700;font-size:15px;color:var(--p2);flex:0 0 auto}
+.pick{flex:0 0 42px;background:rgba(11,12,16,.55);font-family:"Big Shoulders Display",sans-serif;
+  font-weight:900;font-size:24px;color:rgba(244,242,236,.32);display:flex;align-items:center;justify-content:center}
+.pick.on{color:var(--ink)}
+.pick[data-p="1"].on{background:var(--p1)}
+.pick[data-p="2"].on{background:var(--p2)}
+.pick:active{background:rgba(255,255,255,.18)}
+.pick.on:active{filter:brightness(.86)}
+.misses{display:flex;gap:6px;flex:0 0 auto;margin-top:8px}
+.miss{flex:1;padding:12px 6px;text-align:center;font-family:"Space Mono",monospace;font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase;box-shadow:inset 0 0 0 1.5px rgba(244,242,236,.35);color:#C9CEF2}
+.miss.on{background:var(--c);color:var(--ink);box-shadow:none;font-weight:700}
+.addbtn{flex:0 0 auto;margin-top:6px;padding:12px;text-align:center;
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--p2);box-shadow:inset 0 0 0 1.5px rgba(255,212,0,.5)}
+.addbtn:active{background:rgba(255,212,0,.16)}
+.hidden{display:none !important}
+
+/* ---------- overlays ---------- */
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;z-index:30;
+  padding:calc(var(--pad) + env(safe-area-inset-top)) 20px calc(var(--pad) + env(safe-area-inset-bottom))}
+.overlay.on{display:flex}
+#addpanel{background:var(--field-deep)}
+#addpanel .textin{margin:12px 0 20px;font-size:19px}
+#addpanel .seg{margin-bottom:22px}
+#addpanel .seg button{font-family:"Space Mono",monospace;font-size:15px;padding:14px 4px;flex:1 1 13%;min-width:0}
+.addrow{display:flex;gap:8px}
+.addrow .btn{flex:1}
+
+#flood{color:var(--ink)}
+#flood.anim{animation:slam .34s cubic-bezier(.2,.9,.2,1)}
+@keyframes slam{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
+#flood .who{font-size:clamp(50px,15vw,88px);line-height:.84}
+#flood .said{margin-top:16px;font-size:20px;font-weight:700;line-height:1.25}
+#flood .meta{margin-top:10px;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.12em;
+  text-transform:uppercase;opacity:.72}
+#flood .tapoff{position:absolute;left:20px;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));
+  font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.5}
+
+/* ---------- tallies ---------- */
+.tally{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px;min-height:0}
+.tallyrow{background:var(--ink);padding:15px;display:flex;align-items:center;gap:12px;border-left:8px solid var(--c)}
+.tallyrow .nm{flex:1;font-family:"Big Shoulders Display",sans-serif;font-weight:800;font-size:34px;
+  line-height:.9;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tallyrow .big{font-family:"Space Mono",monospace;font-weight:700;font-size:30px;color:var(--c)}
+.tallyrow .sub{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.12em;color:var(--dead);text-transform:uppercase}
+.winbanner{transform:rotate(-1.2deg);margin-bottom:6px}
+.winbanner .k{font-size:clamp(44px,13vw,76px);line-height:.85}
+.final-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:10px}
+
+/* ---------- recap ---------- */
+.rc-block{background:var(--ink);padding:14px;margin-bottom:10px}
+.rc-headline{font-family:"Big Shoulders Display",sans-serif;font-weight:900;font-size:32px;
+  line-height:.9;text-transform:uppercase;margin:8px 0 4px}
+.rc-sub{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--dead);text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.chip{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.08em;padding:6px 8px;
+  box-shadow:inset 0 0 0 1.5px rgba(244,242,236,.3);color:#C9CEF2;text-transform:uppercase}
+.chip b{color:var(--p2);font-weight:700}
+.statline{display:flex;justify-content:space-between;gap:10px;padding:7px 0;
+  border-bottom:1.5px solid rgba(244,242,236,.12);font-size:13px}
+.statline:last-child{border-bottom:0}
+.statline span:last-child{font-family:"Space Mono",monospace;font-weight:700}
+.rcard{background:var(--ink);padding:13px;margin-bottom:8px;border-left:5px solid var(--c)}
+.rcard .rq{font-size:14px;font-weight:700;line-height:1.3;margin:7px 0 10px}
+.rline{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;
+  background:rgba(255,255,255,.05);font-size:13px}
+.rline.won{background:var(--pc);color:var(--ink);font-weight:700}
+.rline .rn{flex:0 0 auto;max-width:33%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+.rline .rs{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rline .rr{flex:0 0 auto;font-family:"Space Mono",monospace;font-size:11px;opacity:.7}
+.rline.miss .rs{opacity:.5;font-style:italic}
+.rverdict{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--dead);margin-top:6px}
+
+/* ---------- settings ---------- */
+.sechead{margin:22px 0 9px;display:flex;align-items:center;gap:10px}
+.sechead:first-child{margin-top:6px}
+.sechead .ln{flex:1;height:1.5px;background:rgba(244,242,236,.22)}
+.field{margin-bottom:10px}
+.flabel{font-size:13px;font-weight:500;color:#CBD0F4;margin-bottom:6px;display:block;line-height:1.3}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{flex:1;min-width:52px;padding:11px 6px;text-align:center;font-size:13px;font-weight:500;
+  box-shadow:inset 0 0 0 1.5px rgba(244,242,236,.3);color:#CBD0F4}
+.seg button.on{background:var(--paper);color:var(--ink);font-weight:700;box-shadow:none}
+.seg.cats button{flex:1 1 46%}
+.textin{width:100%;background:var(--ink);padding:13px;font-size:16px;font-weight:700;
+  box-shadow:inset 0 0 0 2px var(--c,var(--paper));color:var(--c,var(--paper))}
+.textin::placeholder{color:rgba(244,242,236,.35);font-weight:400}
+.toggle{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1.5px solid rgba(244,242,236,.14)}
+.toggle .tt{flex:1}
+.toggle .tt b{display:block;font-size:14px;font-weight:700}
+.toggle .tt span{display:block;font-size:12px;color:#A2A9DA;line-height:1.3;margin-top:2px}
+.sw{flex:0 0 54px;height:30px;background:rgba(0,0,0,.4);position:relative;box-shadow:inset 0 0 0 1.5px rgba(244,242,236,.3)}
+.sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;background:var(--dead);transition:left .12s,background .12s}
+.sw.on{background:var(--ink);box-shadow:inset 0 0 0 1.5px var(--p2)}
+.sw.on i{left:27px;background:var(--p2)}
+.warn{font-family:"Space Mono",monospace;font-size:11px;line-height:1.6;color:#A2A9DA;letter-spacing:.04em;
+  padding:12px;box-shadow:inset 0 0 0 1.5px rgba(244,242,236,.2);margin-top:8px}
+.footpad{height:26px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<section class="screen on" id="s-home">
+  <div class="home-mark display"><span class="l1">Dead</span><span class="l2">Air</span></div>
+  <p class="home-tag">Two players in headphones. One reader. Whoever lands the higher survey answer takes the round.</p>
+  <div class="home-actions">
+    <button class="btn" id="go-play">Start duel</button>
+    <button class="btn ghost" id="go-settings">Settings</button>
+  </div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section class="screen" id="s-settings">
+  <div class="topbar"><span class="eyebrow">Settings</span><button class="iconbtn" id="set-back">Done</button></div>
+  <div class="scrollpane">
+    <div class="sechead"><span class="eyebrow">Players</span><span class="ln"></span></div>
+    <div class="field"><label class="flabel" for="n1">Player 1 name</label>
+      <input class="textin" id="n1" maxlength="12" style="--c:var(--p1)" autocomplete="off" spellcheck="false"></div>
+    <div class="field"><label class="flabel" for="n2">Player 2 name</label>
+      <input class="textin" id="n2" maxlength="12" style="--c:var(--p2)" autocomplete="off" spellcheck="false"></div>
+
+    <div class="sechead"><span class="eyebrow">Game</span><span class="ln"></span></div>
+    <div class="field"><span class="flabel">Rounds per game</span><div class="seg" id="seg-rounds"></div></div>
+    <div class="field"><span class="flabel">Winner is decided by</span><div class="seg" id="seg-win"></div></div>
+    <div class="field"><span class="flabel">Answers shown on the board</span><div class="seg" id="seg-slots"></div></div>
+
+    <div class="sechead"><span class="eyebrow">Categories</span><span class="ln"></span></div>
+    <div class="field"><span class="flabel">Mix any combination. At least one stays on.</span>
+      <div class="seg cats" id="seg-cats"></div></div>
+
+    <div class="sechead"><span class="eyebrow">Timer</span><span class="ln"></span></div>
+    <div class="field"><span class="flabel">Seconds to blurt an answer</span><div class="seg" id="seg-timer"></div></div>
+
+    <div class="sechead"><span class="eyebrow">Table rules</span><span class="ln"></span></div>
+    <div class="toggle" data-set="allowCustom">
+      <div class="tt"><b>Let the reader add answers</b><span>If someone says something good that isn't listed, put it on the board and rank it.</span></div>
+      <div class="sw"><i></i></div></div>
+    <div class="toggle" data-set="keepPrompt">
+      <div class="tt"><b>Keep the prompt on the board</b><span>Leaves the question on screen during the reveal, so the camera catches it.</span></div>
+      <div class="sw"><i></i></div></div>
+    <div class="toggle" data-set="autoNext">
+      <div class="tt"><b>Score the round automatically</b><span>Jumps to the result the moment both answers are marked.</span></div>
+      <div class="sw"><i></i></div></div>
+    <div class="toggle" data-set="showPts">
+      <div class="tt"><b>Show point values</b><span>Hide them to keep the reader's face from giving it away.</span></div>
+      <div class="sw"><i></i></div></div>
+    <div class="toggle" data-set="midScores">
+      <div class="tt"><b>Standings between rounds</b><span>Adds a scoreboard stop after every round.</span></div>
+      <div class="sw"><i></i></div></div>
+
+    <div class="sechead"><span class="eyebrow">Feel</span><span class="ln"></span></div>
+    <div class="toggle" data-set="sound">
+      <div class="tt"><b>Sound cues</b><span>Reader-side only. Keep it under the players' headphones.</span></div>
+      <div class="sw"><i></i></div></div>
+    <div class="toggle" data-set="haptics">
+      <div class="tt"><b>Vibration</b><span>A buzz when a round lands. Android and some browsers only.</span></div>
+      <div class="sw"><i></i></div></div>
+    <div class="toggle" data-set="flood">
+      <div class="tt"><b>Colour slam on the result</b><span>Floods the screen in the winner's colour.</span></div>
+      <div class="sw"><i></i></div></div>
+
+    <div class="sechead"><span class="eyebrow">Reset</span><span class="ln"></span></div>
+    <button class="btn ghost small" id="reset-all">Restore defaults</button>
+    <p class="warn">Both players wear headphones and answer at the same time — that way neither one gets a second look at the reader's mouth.</p>
+    <div class="footpad"></div>
+  </div>
+</section>
+
+<!-- ============ PROMPT ============ -->
+<section class="screen" id="s-prompt">
+  <div class="topbar"><span class="tick" id="p-round"></span><span class="clock" id="p-clock"></span></div>
+  <div class="strip" id="p-strip"></div>
+  <div class="promptwrap">
+    <div class="eyebrow" id="p-cat" style="margin-bottom:14px"></div>
+    <h1 class="display prompt" id="p-text"></h1>
+    <p class="readnote">Read it out loud once. Both players answer together.</p>
+  </div>
+  <div class="bar" id="p-bar"><i></i></div>
+  <div style="margin-top:12px"><button class="btn" id="p-reveal">Reveal board</button></div>
+</section>
+
+<!-- ============ BOARD ============ -->
+<section class="screen" id="s-board">
+  <div class="topbar"><span class="tick" id="b-round"></span><button class="iconbtn" id="b-quit">End game</button></div>
+  <div class="boardhead">
+    <div class="eyebrow dim">Mark what each player said</div>
+    <div class="q" id="b-q"></div>
+  </div>
+  <div class="rows" id="b-rows"></div>
+  <div class="misses">
+    <button class="miss" id="miss1" style="--c:var(--p1)">missed</button>
+    <button class="miss" id="miss2" style="--c:var(--p2)">missed</button>
+  </div>
+  <button class="addbtn" id="b-add">+ That answer was good — add it</button>
+  <div style="margin-top:8px"><button class="btn" id="b-score">Score the round</button></div>
+</section>
+
+<!-- ============ MID SCORES ============ -->
+<section class="screen" id="s-scores">
+  <div class="topbar"><span class="eyebrow">Standings</span><span class="tick" id="sc-round"></span></div>
+  <div class="tally" id="sc-tally"></div>
+  <button class="btn" id="sc-next">Next round</button>
+</section>
+
+<!-- ============ FINAL ============ -->
+<section class="screen" id="s-final">
+  <div class="topbar"><span class="eyebrow">Final</span><button class="iconbtn" id="f-home">Home</button></div>
+  <div class="tally">
+    <div class="winbanner display"><span class="k" id="f-who"></span></div>
+    <div id="f-tally" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+  <div class="final-actions">
+    <button class="btn ghost" id="f-recap">Game overview</button>
+    <button class="btn" id="f-again">Rematch</button>
+  </div>
+</section>
+
+<!-- ============ RECAP ============ -->
+<section class="screen" id="s-recap">
+  <div class="topbar"><span class="eyebrow">Game overview</span><button class="iconbtn" id="rc-back">Back</button></div>
+  <div class="scrollpane">
+    <div id="rc-summary"></div>
+    <div class="sechead"><span class="eyebrow">Round by round</span><span class="ln"></span></div>
+    <div id="rc-rounds"></div>
+    <div class="footpad"></div>
+  </div>
+</section>
+
+<!-- ============ ADD ANSWER ============ -->
+<div class="overlay" id="addpanel">
+  <div class="eyebrow">Add to the board</div>
+  <input class="textin" id="add-text" maxlength="30" placeholder="What did they say?" autocomplete="off" spellcheck="false">
+  <span class="flabel">Where does it rank?</span>
+  <div class="seg" id="add-pos"></div>
+  <div class="addrow">
+    <button class="btn ghost small" id="add-cancel">Cancel</button>
+    <button class="btn small" id="add-go">Add it</button>
+  </div>
+</div>
+
+<!-- ============ FLOOD ============ -->
+<div class="overlay" id="flood">
+  <div class="display who" id="fl-who"></div>
+  <div class="said" id="fl-said"></div>
+  <div class="meta" id="fl-meta"></div>
+  <div class="tapoff">Tap to continue</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   PROMPT BANK — 5 categories, 12 prompts each, 6 ranked answers.
+   Point spreads are kept deliberately flat: if one answer is too
+   obvious both players say it and the round is a push.
+   ============================================================ */
+var DATA = [
+{ id:"everyday", name:"Everyday", prompts:[
+  ["Name something you'd find under a couch cushion",[["Coins",26],["The TV remote",22],["Crumbs",18],["A pen",14],["Hair ties",12],["An old chip",8]]],
+  ["Name a chore people put off the longest",[["Dishes",24],["Cleaning the bathroom",22],["Laundry",20],["Vacuuming",16],["Taking out the trash",12],["Changing the sheets",6]]],
+  ["Name something in everybody's junk drawer",[["Dead batteries",24],["Old keys",22],["Elastic bands",18],["Pens that don't work",16],["Takeout menus",12],["Loose screws",8]]],
+  ["Name something people lose every single week",[["Keys",26],["Their phone",22],["The remote",20],["A charger",16],["Socks",10],["Earbuds",6]]],
+  ["Name something you own that's held together with tape",[["A phone case",24],["A charging cable",22],["A backpack",16],["Glasses",14],["A book",14],["A remote",10]]],
+  ["Name a sound a house makes at night",[["Creaking floors",24],["The furnace",22],["The fridge humming",20],["A dripping tap",16],["Wind on the windows",12],["Pipes",6]]],
+  ["Name something that breaks way too fast",[["Charging cables",26],["Phone screens",24],["Shoelaces",16],["Umbrellas",14],["Zippers",12],["Cheap headphones",8]]],
+  ["Name a room that is always a disaster",[["A bedroom",24],["The basement",22],["The garage",20],["A closet",16],["The kitchen",12],["The bathroom",6]]],
+  ["Name what you'd grab first if the house flooded",[["Your phone",26],["A laptop",22],["The pets",18],["Photos",18],["Your wallet",10],["Shoes",6]]],
+  ["Name something people keep way past the expiry date",[["Condiments",26],["Milk",20],["Leftovers",18],["Bread",18],["Spices",12],["Yogurt",6]]],
+  ["Name a thing you use once a year",[["Christmas decorations",28],["A suitcase",20],["A shovel",16],["The nice dishes",16],["A tent",12],["A suit",8]]],
+  ["Name something you always mean to fix and never do",[["A squeaky door",24],["A burnt out bulb",20],["A running toilet",20],["A loose handle",16],["A cracked screen",12],["A wobbly chair",8]]]
+]},
+{ id:"out", name:"Out &amp; About", prompts:[
+  ["Name the most likely place to see someone with no shirt on",[["The beach",28],["The gym",22],["A pool",18],["Their own driveway",14],["A house party",10],["A concert",8]]],
+  ["Name somewhere you have to whisper",[["A library",26],["A church",22],["A movie theatre",20],["A hospital",18],["A museum",8],["An exam room",6]]],
+  ["Name a place with brutal parking",[["The mall",26],["Downtown",24],["A hospital",18],["A concert",16],["School",10],["The grocery store",6]]],
+  ["Name somewhere you always end up waiting forever",[["The doctor's office",26],["The airport",20],["Service Ontario",18],["A drive-thru",18],["The bus stop",12],["A restaurant",6]]],
+  ["Name a place you smell before you see it",[["A bakery",26],["A locker room",20],["A gas station",20],["A dumpster",16],["A barn",12],["A candle store",6]]],
+  ["Name where teenagers actually hang out",[["Someone's basement",24],["The mall",22],["A parking lot",18],["Tim Hortons",16],["A park",14],["McDonald's",6]]],
+  ["Name somewhere it's easy to get completely lost",[["A mall",24],["A big city",22],["The woods",20],["An airport",18],["A hospital",10],["A parking garage",6]]],
+  ["Name a place that's only good in summer",[["The beach",28],["A patio",22],["The cottage",18],["A pool",16],["A park",10],["A drive-in",6]]],
+  ["Name somewhere you'd never want to fall asleep",[["On a bus",24],["In class",22],["At work",20],["At the dentist",16],["On a plane",12],["At the movies",6]]],
+  ["Name a place where the line is always too long",[["The bathroom at a concert",24],["Airport security",20],["The bank",20],["A drive-thru",16],["Grocery checkout",14],["A ride at the fair",6]]],
+  ["Name somewhere you go when you have nowhere to be",[["The mall",24],["A park",22],["A coffee shop",20],["The library",16],["A friend's house",12],["Just driving",6]]],
+  ["Name a place your phone always dies",[["A concert",24],["The airport",24],["On a road trip",18],["At school",16],["Camping",12],["The beach",6]]]
+]},
+{ id:"food", name:"Food Court", prompts:[
+  ["Name a food you always eat with your hands",[["Pizza",26],["Fries",22],["A burger",18],["Wings",16],["Tacos",12],["A sandwich",6]]],
+  ["Name a pizza topping that starts arguments",[["Pineapple",34],["Anchovies",22],["Mushrooms",14],["Olives",12],["Onions",10],["Peppers",8]]],
+  ["Name something people drown their fries in",[["Ketchup",30],["Gravy",22],["Cheese",16],["Mayo",14],["Ranch",12],["Vinegar",6]]],
+  ["Name a food that's better the next day",[["Pizza",26],["Lasagna",22],["Chili",18],["Curry",16],["Pasta",12],["Stew",6]]],
+  ["Name something you burn every single time",[["Toast",26],["Garlic",20],["Rice",20],["Grilled cheese",16],["Popcorn",12],["Cookies",6]]],
+  ["Name a snack that disappears in one sitting",[["Chips",26],["Cookies",22],["Popcorn",18],["Candy",16],["Ice cream",12],["Crackers",6]]],
+  ["Name a food kids will not touch",[["Broccoli",26],["Brussels sprouts",22],["Mushrooms",20],["Onions",16],["Fish",10],["Tomatoes",6]]],
+  ["Name what's always in a school cafeteria",[["Pizza",26],["Fries",22],["Chocolate milk",20],["Sandwiches",16],["Chicken fingers",10],["Apples",6]]],
+  ["Name a meal people eat at 2am",[["Cereal",26],["Pizza",22],["Instant noodles",20],["Toast",14],["Leftovers",12],["Eggs",6]]],
+  ["Name a drink that's basically dessert",[["A milkshake",24],["Iced coffee",22],["Pop",20],["Hot chocolate",16],["Bubble tea",12],["A smoothie",6]]],
+  ["Name a food that's impossible to eat neatly",[["Tacos",26],["Ribs",22],["Spaghetti",18],["A burger",16],["Wings",12],["An ice cream cone",6]]],
+  ["Name something everybody puts too much of on their food",[["Salt",26],["Ketchup",22],["Cheese",20],["Hot sauce",16],["Butter",10],["Pepper",6]]]
+]},
+{ id:"awkward", name:"Awkward", prompts:[
+  ["Name something embarrassing to get caught doing",[["Singing to yourself",26],["Dancing alone",22],["Talking to yourself",20],["Rehearsing an argument",16],["Crying at a movie",10],["Posing in the mirror",6]]],
+  ["Name a lie that everyone has told",[["I'm five minutes away",30],["I read the terms",22],["I'm fine",20],["I'll start tomorrow",14],["I remember you",8],["I've seen that one",6]]],
+  ["Name what people say when they forget your name",[["Hey you",28],["Buddy",22],["Man",18],["Boss",16],["Chief",10],["Dude",6]]],
+  ["Name something people pretend to understand",[["Taxes",26],["Crypto",24],["Wine",18],["Modern art",16],["The stock market",10],["Poetry",6]]],
+  ["Name something that instantly ruins a photo",[["Blinking",26],["A photobomber",22],["Bad lighting",18],["Wind",16],["A weird face",12],["Red eye",6]]],
+  ["Name a sound nobody wants in a quiet room",[["A stomach growling",26],["A phone buzzing",22],["Chewing",20],["A sneeze",16],["A chair squeak",10],["A cough",6]]],
+  ["Name something awkward to do in front of your parents",[["Watch a kissing scene",28],["Talk about money",22],["Sing",18],["Dance",16],["Photograph your food",10],["Argue with a sibling",6]]],
+  ["Name a moment you replay in your head at 3am",[["Something you said",28],["A joke that flopped",22],["An argument you lost",20],["An interview",14],["A text you sent",10],["Tripping in public",6]]],
+  ["Name something people only do when nobody's watching",[["Dance",26],["Sing loudly",22],["Talk to themselves",20],["Check their breath",16],["Eat out of the fridge",10],["Smell their laundry",6]]],
+  ["Name a habit people swear they don't have",[["Snoring",26],["Interrupting",22],["Being late",20],["Checking their phone",16],["Talking too loud",10],["Chewing loudly",6]]],
+  ["Name something you'd hate stuck in your teeth",[["Spinach",30],["Popcorn",22],["Seeds",18],["Meat",14],["Chocolate",10],["Corn",6]]],
+  ["Name what people do to look busy",[["Type nothing",26],["Stare at a screen",22],["Carry papers around",18],["Walk fast",16],["Put headphones on",12],["Reorganize a desk",6]]]
+]},
+{ id:"wild", name:"Wild", prompts:[
+  ["Name an animal that's black and white",[["A panda",26],["A zebra",24],["A skunk",20],["A penguin",18],["An orca",8],["A cow",4]]],
+  ["Name an animal you don't want inside your house",[["A bear",24],["A snake",22],["A spider",20],["A raccoon",18],["A skunk",10],["A bat",6]]],
+  ["Name something that ruins a camping trip",[["Rain",26],["Mosquitoes",24],["The cold",18],["A fire that won't start",16],["Bears",10],["Wet socks",6]]],
+  ["Name an animal that would destroy you in a fight",[["A bear",28],["A lion",22],["A gorilla",20],["A moose",14],["A tiger",10],["A goose",6]]],
+  ["Name an animal people fear for no good reason",[["Spiders",28],["Snakes",22],["Bats",18],["Wasps",16],["Moths",10],["Frogs",6]]],
+  ["Name an animal that's way too smart",[["Crows",24],["Dolphins",22],["Octopus",20],["Raccoons",18],["Pigs",10],["Dogs",6]]],
+  ["Name something you'd find deep in the woods",[["Trees",26],["Mushrooms",20],["Deer",18],["A creek",16],["Rocks",14],["Empty cans",6]]],
+  ["Name an animal that's cuter than it should be",[["A raccoon",26],["An otter",22],["A hedgehog",20],["A sloth",16],["A possum",10],["A capybara",6]]],
+  ["Name an animal that's louder than it should be",[["A goose",26],["A crow",22],["A rooster",20],["A frog",16],["A cicada",10],["A chihuahua",6]]],
+  ["Name a bug nobody feels bad about killing",[["A mosquito",30],["A wasp",22],["A fly",20],["A spider",12],["A cockroach",10],["An ant",6]]],
+  ["Name something a raccoon would steal",[["Garbage",28],["Food off a table",22],["Cat food",18],["Something shiny",16],["Bird seed",10],["Your lunch",6]]],
+  ["Name an animal that sleeps more than you",[["A cat",30],["A sloth",22],["A dog",20],["A bear",16],["A koala",8],["A bat",4]]]
+]}
+];
+
+/* ---------- guarded storage ---------- */
+var mem = {};
+var store = {
+  get:function(k,d){
+    try{ var v = localStorage.getItem(k); return v===null ? (k in mem ? mem[k] : d) : JSON.parse(v); }
+    catch(e){ return (k in mem) ? mem[k] : d; }
+  },
+  set:function(k,v){ mem[k]=v; try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+var DEFAULTS = {
+  n1:"Player 1", n2:"Player 2",
+  rounds:5, winBy:"rounds", slots:5,
+  cats:["everyday","out","food","awkward","wild"],
+  timer:20,
+  allowCustom:true, keepPrompt:true, autoNext:true, showPts:true, midScores:false,
+  sound:true, haptics:true, flood:true
+};
+var S = Object.assign({}, DEFAULTS, store.get("deadair", {}));
+if(!S.cats || !S.cats.length) S.cats = DEFAULTS.cats.slice();
+function saveS(){ store.set("deadair", S); }
+
+/* ---------- helpers ---------- */
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s).replace(/&(?!amp;)/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function show(id){
+  var all = document.querySelectorAll(".screen");
+  for(var i=0;i<all.length;i++) all[i].classList.remove("on");
+  $(id).classList.add("on");
+}
+var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+var actx=null;
+function beep(freq,dur,vol){
+  if(!S.sound) return;
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended") actx.resume();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type="square"; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol||0.05, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+function buzz(p){ if(!S.haptics) return; try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+
+/* ============================================================
+   Game state
+   ============================================================ */
+var G = null;
+
+function buildDeck(){
+  var pool = [];
+  DATA.forEach(function(cat){
+    if(S.cats.indexOf(cat.id) === -1) return;
+    cat.prompts.forEach(function(p){
+      // deep copy so a custom answer never leaks back into the bank
+      pool.push({ cat:cat.name, q:p[0], answers:p[1].map(function(a){ return [a[0], a[1]]; }) });
+    });
+  });
+  for(var i=pool.length-1;i>0;i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var t=pool[i]; pool[i]=pool[j]; pool[j]=t;
+  }
+  return pool;
+}
+
+function newGame(){
+  G = { deck:buildDeck(), idx:0, round:1, wins:[0,0], pts:[0,0], ties:0,
+        pick:[null,null], card:null, live:[], log:[], added:0, timerId:null };
+  if(!G.deck.length){ S.cats = DEFAULTS.cats.slice(); saveS(); G.deck = buildDeck(); }
+  startRound();
+}
+
+function startRound(){
+  if(G.idx >= G.deck.length) G.deck = G.deck.concat(buildDeck());
+  G.card = G.deck[G.idx];
+  G.pick = [null,null];
+  G.live = G.card.answers.slice(0, S.slots).map(function(a){ return [a[0], a[1], false]; });
+
+  $("p-round").textContent = "Round " + G.round + " / " + S.rounds;
+  $("b-round").textContent = "Round " + G.round + " / " + S.rounds;
+  $("p-cat").innerHTML = G.card.cat;
+  $("p-text").textContent = G.card.q;
+  $("b-q").textContent = G.card.q;
+  $("b-q").classList.toggle("hidden", !S.keepPrompt);
+  renderStrip();
+  show("s-prompt");
+  runTimer();
+}
+
+function renderStrip(){
+  var n = (S.winBy === "points") ? G.pts : G.wins;
+  $("p-strip").innerHTML =
+    '<div style="--c:var(--p1)"><span class="nm">'+esc(S.n1)+'</span><span class="sc">'+n[0]+'</span></div>' +
+    '<div style="--c:var(--p2)"><span class="nm">'+esc(S.n2)+'</span><span class="sc">'+n[1]+'</span></div>';
+}
+
+/* ---------- timer ---------- */
+function stopTimer(){ if(G && G.timerId){ clearInterval(G.timerId); G.timerId=null; } }
+function runTimer(){
+  stopTimer();
+  var bar = $("p-bar"), fill = bar.firstElementChild, clock = $("p-clock");
+  if(!S.timer){ bar.style.visibility="hidden"; clock.textContent=""; return; }
+  bar.style.visibility="visible";
+  var total = S.timer, left = total;
+  clock.classList.remove("low");
+  clock.textContent = left + "s";
+  fill.style.transform = "scaleX(1)";
+  G.timerId = setInterval(function(){
+    left--;
+    if(left <= 0){
+      stopTimer(); clock.textContent = "0s"; fill.style.transform = "scaleX(0)";
+      beep(200,.28,.07); buzz(120); openBoard(); return;
+    }
+    clock.textContent = left + "s";
+    clock.classList.toggle("low", left <= 5);
+    fill.style.transform = "scaleX(" + (left/total) + ")";
+    if(left <= 3) beep(880,.05,.03);
+  }, 1000);
+}
+
+/* ---------- board ---------- */
+function renderRows(){
+  $("b-rows").innerHTML = G.live.map(function(a, i){
+    return '<div class="row'+(a[2]?" custom":"")+'" data-i="'+i+'">' +
+      '<div class="face">' +
+        '<span class="rk">'+(a[2] ? "+" : (i+1))+'</span>' +
+        '<span class="txt">'+esc(a[0])+'</span>' +
+        (S.showPts ? '<span class="pts">'+a[1]+'</span>' : '') +
+      '</div>' +
+      '<button class="pick" data-p="1">1</button>' +
+      '<button class="pick" data-p="2">2</button>' +
+    '</div>';
+  }).join("");
+  paintPicks();
+}
+
+function openBoard(){
+  stopTimer();
+  renderRows();
+  $("b-rows").scrollTop = 0;
+  $("miss1").textContent = S.n1 + " missed";
+  $("miss2").textContent = S.n2 + " missed";
+  $("b-add").classList.toggle("hidden", !S.allowCustom);
+  $("b-score").classList.toggle("hidden", !!S.autoNext);
+  show("s-board");
+  beep(520,.07,.05);
+}
+
+function paintPicks(){
+  var picks = $("b-rows").querySelectorAll(".pick");
+  for(var i=0;i<picks.length;i++){
+    var p = +picks[i].getAttribute("data-p");
+    var rowI = +picks[i].parentNode.getAttribute("data-i");
+    picks[i].classList.toggle("on", G.pick[p-1] === rowI);
+  }
+  $("miss1").classList.toggle("on", G.pick[0] === -1);
+  $("miss2").classList.toggle("on", G.pick[1] === -1);
+}
+
+function setPick(player, value){
+  G.pick[player] = (G.pick[player] === value) ? null : value;
+  paintPicks();
+  buzz(12);
+  beep(player===0 ? 660 : 780, .05, .04);
+  if(S.autoNext && G.pick[0] !== null && G.pick[1] !== null) setTimeout(scoreRound, 340);
+}
+
+/* ---------- custom answers ---------- */
+var addPos = 0;
+function openAdd(){
+  addPos = G.live.length;                       // default: slot it at the bottom
+  $("add-text").value = "";
+  paintAddPos();
+  $("addpanel").classList.add("on");
+  setTimeout(function(){ try{ $("add-text").focus(); }catch(e){} }, 60);
+  beep(700,.05,.04);
+}
+function closeAdd(){ $("addpanel").classList.remove("on"); try{ $("add-text").blur(); }catch(e){} }
+
+function paintAddPos(){
+  var n = G.live.length + 1, html = "";
+  for(var i=0;i<n;i++) html += '<button data-v="'+i+'" class="'+(i===addPos?"on":"")+'">'+(i+1)+'</button>';
+  $("add-pos").innerHTML = html;
+}
+
+function commitAdd(){
+  var txt = ($("add-text").value || "").trim();
+  if(!txt){ $("add-text").focus(); return; }
+  var pos = Math.max(0, Math.min(addPos, G.live.length));
+  var pts;
+  if(G.live.length === 0) pts = 20;
+  else if(pos === 0) pts = G.live[0][1] + 4;
+  else if(pos === G.live.length) pts = Math.max(4, Math.round(G.live[G.live.length-1][1] * 0.7));
+  else pts = Math.round((G.live[pos-1][1] + G.live[pos][1]) / 2);
+
+  G.live.splice(pos, 0, [txt, pts, true]);
+  G.added++;
+  // anything at or below the insert point shifts down one
+  [0,1].forEach(function(k){
+    if(G.pick[k] !== null && G.pick[k] >= 0 && G.pick[k] >= pos) G.pick[k]++;
+  });
+  closeAdd();
+  renderRows();
+  beep(980,.09,.06); buzz(20);
+}
+
+/* ---------- scoring ---------- */
+function scoreRound(){
+  if(G.pick[0] === null || G.pick[1] === null) return;
+  var v = [0,0], winner = null;
+  [0,1].forEach(function(k){
+    v[k] = (G.pick[k] >= 0) ? G.live[G.pick[k]][1] : 0;
+    G.pts[k] += v[k];
+  });
+
+  var r1 = G.pick[0], r2 = G.pick[1];
+  if(r1 === r2) winner = null;
+  else if(r1 < 0) winner = 1;
+  else if(r2 < 0) winner = 0;
+  else winner = (r1 < r2) ? 0 : 1;      // lower index = higher survey answer
+
+  if(winner === null) G.ties++; else G.wins[winner]++;
+
+  G.log.push({
+    cat: G.card.cat, q: G.card.q, winner: winner,
+    said: [ r1 >= 0 ? G.live[r1][0] : null, r2 >= 0 ? G.live[r2][0] : null ],
+    rank: [ r1, r2 ], pts: v,
+    custom: [ r1 >= 0 && G.live[r1][2], r2 >= 0 && G.live[r2][2] ]
+  });
+
+  showFlood(winner);
+}
+
+var floodGen = 0;
+function showFlood(winner){
+  var f = $("flood");
+  if(!S.flood){ advance(); return; }
+  var gen = ++floodGen, spent = false;
+  var done = function(){
+    if(spent) return;
+    spent = true;
+    f.classList.remove("on","anim");
+    f.removeEventListener("click", done);
+    advance();
+  };
+
+  var said1 = G.pick[0] >= 0 ? G.live[G.pick[0]][0] : "nothing on the board";
+  var said2 = G.pick[1] >= 0 ? G.live[G.pick[1]][0] : "nothing on the board";
+
+  if(winner === null){
+    f.style.background = "var(--paper)";
+    $("fl-who").textContent = "Push";
+    $("fl-said").textContent = (G.pick[0] === G.pick[1] && G.pick[0] >= 0)
+      ? "Both said " + said1 : "Neither one landed on the board";
+    $("fl-meta").textContent = "No round point";
+  } else {
+    f.style.background = winner === 0 ? "var(--p1)" : "var(--p2)";
+    $("fl-who").textContent = winner === 0 ? S.n1 : S.n2;
+    $("fl-said").textContent = "\u201C" + (winner === 0 ? said1 : said2) + "\u201D";
+    $("fl-meta").textContent = (winner === 0 ? said1 : said2) + " beats " + (winner === 0 ? said2 : said1);
+  }
+
+  f.classList.add("on");
+  if(!reduced) f.classList.add("anim");
+  beep(winner === null ? 340 : 900, .16, .07);
+  buzz(winner === null ? 40 : [30,50,90]);
+  f.addEventListener("click", done);
+  setTimeout(function(){ if(gen === floodGen) done(); }, 1600);
+}
+
+function advance(){
+  G.idx++;
+  if(G.round >= S.rounds){ finish(); return; }
+  G.round++;
+  if(S.midScores){
+    $("sc-round").textContent = "After round " + (G.round-1);
+    $("sc-tally").innerHTML = tallyHTML();
+    show("s-scores");
+  } else startRound();
+}
+
+function tallyHTML(){
+  return [0,1].map(function(k){
+    var nm  = k===0 ? S.n1 : S.n2;
+    var c   = k===0 ? "var(--p1)" : "var(--p2)";
+    var big = (S.winBy === "points") ? G.pts[k] : G.wins[k];
+    var sub = (S.winBy === "points")
+      ? G.wins[k] + " round" + (G.wins[k]===1?"":"s") + " won"
+      : G.pts[k] + " board points";
+    return '<div class="tallyrow" style="--c:'+c+'"><span class="nm">'+esc(nm)+'</span>' +
+      '<span style="text-align:right"><span class="big">'+big+'</span><br><span class="sub">'+esc(sub)+'</span></span></div>';
+  }).join("");
+}
+
+function finish(){
+  stopTimer();
+  var a = (S.winBy === "points") ? G.pts[0] : G.wins[0];
+  var b = (S.winBy === "points") ? G.pts[1] : G.wins[1];
+  $("f-who").textContent = a === b ? "Dead heat" : (a > b ? S.n1 : S.n2);
+  $("f-who").style.color = a === b ? "var(--paper)" : (a > b ? "var(--p1)" : "var(--p2)");
+  $("f-tally").innerHTML = tallyHTML();
+  show("s-final");
+  beep(1046,.22,.07); buzz([40,60,40,60,140]);
+}
+
+/* ============================================================
+   Overview
+   ============================================================ */
+function renderRecap(){
+  var played = G.log.length;
+  var a = (S.winBy === "points") ? G.pts[0] : G.wins[0];
+  var b = (S.winBy === "points") ? G.pts[1] : G.wins[1];
+  var headline = a === b ? "Dead heat" : ((a > b ? S.n1 : S.n2) + " takes it");
+
+  // category mix
+  var counts = {}, order = [];
+  G.log.forEach(function(r){
+    if(!(r.cat in counts)){ counts[r.cat] = 0; order.push(r.cat); }
+    counts[r.cat]++;
+  });
+  var chips = order.map(function(c){
+    return '<span class="chip">'+c+' <b>&times;'+counts[c]+'</b></span>';
+  }).join("");
+
+  var best = [0,1].map(function(k){
+    var top = null;
+    G.log.forEach(function(r){ if(r.rank[k] === 0) top = (top||0)+1; });
+    return top || 0;
+  });
+
+  $("rc-summary").innerHTML =
+    '<div class="rc-block">' +
+      '<span class="eyebrow dim">Result</span>' +
+      '<div class="rc-headline" style="color:'+(a===b?"var(--paper)":(a>b?"var(--p1)":"var(--p2)"))+'">'+esc(headline)+'</div>' +
+      '<div class="rc-sub">'+played+' round'+(played===1?"":"s")+' &middot; decided on '+
+        (S.winBy==="points"?"board points":"rounds won")+'</div>' +
+      '<div class="chips">'+chips+'</div>' +
+    '</div>' +
+    '<div class="rc-block">' +
+      '<span class="eyebrow dim">Numbers</span>' +
+      '<div style="margin-top:8px">' +
+        statline("Rounds won", G.wins[0] + " &ndash; " + G.wins[1]) +
+        statline("Board points", G.pts[0] + " &ndash; " + G.pts[1]) +
+        statline("Top answer nailed", best[0] + " &ndash; " + best[1]) +
+        statline("Pushes", G.ties) +
+        statline("Answers you added", G.added) +
+      '</div>' +
+    '</div>';
+
+  $("rc-rounds").innerHTML = G.log.map(function(r, i){
+    var c = r.winner === null ? "var(--dead)" : (r.winner === 0 ? "var(--p1)" : "var(--p2)");
+    var verdict = r.winner === null
+      ? (r.rank[0] === r.rank[1] && r.rank[0] >= 0 ? "Push — same answer" : "Push — nobody landed")
+      : ((r.winner === 0 ? S.n1 : S.n2) + " takes the round");
+    return '<div class="rcard" style="--c:'+c+'">' +
+      '<span class="eyebrow dim">Round '+(i+1)+' &middot; '+r.cat+'</span>' +
+      '<div class="rq">'+esc(r.q)+'</div>' +
+      line(0, r) + line(1, r) +
+      '<div class="rverdict">'+esc(verdict)+'</div>' +
+    '</div>';
+  }).join("");
+
+  function line(k, r){
+    var nm = k===0 ? S.n1 : S.n2;
+    var won = r.winner === k;
+    var missed = r.rank[k] < 0;
+    var tag = missed ? "off the board"
+      : ("#" + (r.rank[k]+1) + (r.custom[k] ? " added" : "") + " &middot; " + r.pts[k]);
+    return '<div class="rline'+(won?" won":"")+(missed?" miss":"")+'" style="--pc:'+
+      (k===0?"var(--p1)":"var(--p2)")+'">' +
+      '<span class="rn">'+esc(nm)+'</span>' +
+      '<span class="rs">'+(missed ? "&mdash;" : esc(r.said[k]))+'</span>' +
+      '<span class="rr">'+tag+'</span></div>';
+  }
+  function statline(l, v){ return '<div class="statline"><span>'+l+'</span><span>'+v+'</span></div>'; }
+}
+
+/* ============================================================
+   Settings UI
+   ============================================================ */
+function segment(host, options, current, onPick){
+  host.innerHTML = options.map(function(o){
+    return '<button data-v="'+o[1]+'" class="'+(String(o[1])===String(current)?"on":"")+'">'+o[0]+'</button>';
+  }).join("");
+  host.onclick = function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    for(var i=0;i<host.children.length;i++) host.children[i].classList.remove("on");
+    b.classList.add("on");
+    onPick(b.getAttribute("data-v"));
+    saveS(); beep(700,.03,.03);
+  };
+}
+
+function paintSettings(){
+  $("n1").value = S.n1;
+  $("n2").value = S.n2;
+  segment($("seg-rounds"), [["3",3],["5",5],["7",7],["10",10]], S.rounds, function(v){ S.rounds = +v; });
+  segment($("seg-win"), [["Rounds won","rounds"],["Board points","points"]], S.winBy, function(v){ S.winBy = v; });
+  segment($("seg-slots"), [["3",3],["4",4],["5",5],["6",6]], S.slots, function(v){ S.slots = +v; });
+  segment($("seg-timer"), [["Off",0],["10s",10],["15s",15],["20s",20],["30s",30]], S.timer, function(v){ S.timer = +v; });
+
+  var host = $("seg-cats");
+  host.innerHTML = DATA.map(function(c){
+    return '<button data-c="'+c.id+'" class="'+(S.cats.indexOf(c.id)>-1?"on":"")+'">'+c.name+'</button>';
+  }).join("");
+  host.onclick = function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    var id = b.getAttribute("data-c"), at = S.cats.indexOf(id);
+    if(at > -1){
+      if(S.cats.length === 1) return;
+      S.cats.splice(at,1); b.classList.remove("on");
+    } else { S.cats.push(id); b.classList.add("on"); }
+    saveS(); beep(700,.03,.03);
+  };
+
+  var toggles = document.querySelectorAll(".toggle");
+  for(var i=0;i<toggles.length;i++){
+    (function(t){
+      var key = t.getAttribute("data-set"), sw = t.querySelector(".sw");
+      sw.classList.toggle("on", !!S[key]);
+      t.onclick = function(){
+        S[key] = !S[key];
+        sw.classList.toggle("on", !!S[key]);
+        saveS(); beep(S[key]?820:420,.04,.04); buzz(10);
+      };
+    })(toggles[i]);
+  }
+}
+
+/* ============================================================
+   Wiring
+   ============================================================ */
+$("go-play").onclick = function(){ beep(880,.08,.06); newGame(); };
+$("go-settings").onclick = function(){ paintSettings(); show("s-settings"); };
+$("set-back").onclick = function(){
+  S.n1 = ($("n1").value || "").trim() || "Player 1";
+  S.n2 = ($("n2").value || "").trim() || "Player 2";
+  saveS(); show("s-home");
+};
+$("reset-all").onclick = function(){
+  S = Object.assign({}, DEFAULTS); S.cats = DEFAULTS.cats.slice();
+  saveS(); paintSettings(); beep(300,.2,.06);
+};
+
+$("p-reveal").onclick = openBoard;
+
+$("b-rows").onclick = function(e){
+  var b = e.target.closest(".pick"); if(!b) return;
+  setPick(+b.getAttribute("data-p") - 1, +b.parentNode.getAttribute("data-i"));
+};
+$("miss1").onclick = function(){ setPick(0, -1); };
+$("miss2").onclick = function(){ setPick(1, -1); };
+$("b-score").onclick = scoreRound;
+$("b-add").onclick = openAdd;
+$("b-quit").onclick = function(){ stopTimer(); finish(); };
+
+$("add-pos").onclick = function(e){
+  var b = e.target.closest("button"); if(!b) return;
+  addPos = +b.getAttribute("data-v"); paintAddPos(); beep(640,.03,.03);
+};
+$("add-go").onclick = commitAdd;
+$("add-cancel").onclick = closeAdd;
+$("add-text").addEventListener("keydown", function(e){ if(e.key === "Enter") commitAdd(); });
+
+$("sc-next").onclick = startRound;
+$("f-again").onclick = newGame;
+$("f-home").onclick = function(){ stopTimer(); show("s-home"); };
+$("f-recap").onclick = function(){ renderRecap(); $("s-recap").querySelector(".scrollpane").scrollTop = 0; show("s-recap"); };
+$("rc-back").onclick = function(){ show("s-final"); };
+
+/* the page itself never moves — only the panes that need to */
+document.addEventListener("touchmove", function(e){
+  var t = e.target;
+  var ok = t && t.closest && t.closest(".scrollpane, .rows");
+  if(!ok) e.preventDefault();
+}, { passive:false });
+document.addEventListener("gesturestart", function(e){ e.preventDefault(); });
+
+})();
+</script>
+</body>
+</html>
